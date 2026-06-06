@@ -472,7 +472,7 @@ export default function RavenHop() {
   const [zoom, setZoom] = useState(DEFAULT_ZOOM)
   const panDirRef = useRef({ x: 0, y: 0 }) // active d-pad direction (-1/0/1)
   const [phase, setPhase] = useState<Phase>('title')
-  const [chopInfo, setChopInfo] = useState({ done: 0, needed: 0 })
+  const [, setChopInfo] = useState({ done: 0, needed: 0 })
   const [showCaw, setShowCaw] = useState(false)
   const [result, setResult] = useState<{ score: number; success: boolean } | null>(null)
 
@@ -1234,19 +1234,10 @@ export default function RavenHop() {
         </button>
       </div>
 
-      {/* Chop counter / hint */}
+      {/* Chop hint */}
       {phase === 'chopping' && (
         <div className="rh-hint">
-          <div className="rh-hint-title">CHOP THE SAME SPOT</div>
-          <div className="rh-chops">
-            {Array.from({ length: chopInfo.needed }).map((_, i) => (
-              <span key={i} className={'rh-chip' + (i < chopInfo.done ? ' on' : '')} />
-            ))}
-          </div>
-          <div className="rh-hint-sub">
-            swipe ON THE TRUNK · 5 hits in one spot fells it · chop low to reach · final swipe ←
-            drops it toward the gap
-          </div>
+          <div className="rh-hint-title">SWIPE TO CHOP!</div>
         </div>
       )}
 
