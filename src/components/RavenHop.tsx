@@ -12,7 +12,7 @@ const CHOPS_TO_BREAK = 1 // hits needed in the SAME spot to fell the tree
 const FOLIAGE_PAD = 22 // top of the trunk reserved for the canopy (not choppable)
 const MIN_ZOOM = 0.35
 const MAX_ZOOM = 2.5
-const DEFAULT_ZOOM = 0.42 // frames the whole (very tall) tree + the gap; zoom in to chop precisely
+const DEFAULT_ZOOM = 0.55 // frames the whole tree + gap with the treetop near the top of the display
 const PAN_SPEED = 300 // world units / second while a d-pad button is held
 
 type Phase = 'title' | 'chopping' | 'falling' | 'landed' | 'plunging' | 'hopping' | 'result'
@@ -252,9 +252,11 @@ const LOG_GRAV = 820 // px/s^2 pulling the detached log down
 const LOG_AIR = 0.992 // velocity retained each step in the air
 
 // Surface height under a given x: left island, the water in the gap, or right island.
+// The right island uses the grass top (top - 6) so the foliage rests flush on the
+// visible green surface rather than sinking into the dirt beneath it.
 function groundYAt(g: GameData, x: number) {
   if (x <= LEFT_CLIFF_X) return g.leftTop
-  if (x >= g.rightEdge) return g.rightTop
+  if (x >= g.rightEdge) return g.rightTop - 6
   return WATER_Y
 }
 
@@ -470,7 +472,7 @@ export default function RavenHop() {
   const [zoom, setZoom] = useState(DEFAULT_ZOOM)
   const panDirRef = useRef({ x: 0, y: 0 }) // active d-pad direction (-1/0/1)
   const [phase, setPhase] = useState<Phase>('title')
-  const [chopInfo, setChopInfo] = useState({ done: 0, needed: 0 })
+  const [, setChopInfo] = useState({ done: 0, needed: 0 })
   const [showCaw, setShowCaw] = useState(false)
   const [result, setResult] = useState<{ score: number; success: boolean } | null>(null)
 
@@ -1141,6 +1143,7 @@ export default function RavenHop() {
     // clip-ish: draw sky background larger than world to fill when zoomed
     drawSky(ctx)
     drawIslands(ctx, g)
+    drawScoreZones(ctx, g)
     drawDecoTrees(ctx, g)
     drawTree(ctx, g)
     // Water sits IN FRONT of the landmass and the tree: it hides the underwater
@@ -1231,19 +1234,10 @@ export default function RavenHop() {
         </button>
       </div>
 
-      {/* Chop counter / hint */}
+      {/* Chop hint */}
       {phase === 'chopping' && (
         <div className="rh-hint">
-          <div className="rh-hint-title">CHOP THE SAME SPOT</div>
-          <div className="rh-chops">
-            {Array.from({ length: chopInfo.needed }).map((_, i) => (
-              <span key={i} className={'rh-chip' + (i < chopInfo.done ? ' on' : '')} />
-            ))}
-          </div>
-          <div className="rh-hint-sub">
-            swipe ON THE TRUNK · 5 hits in one spot fells it · chop low to reach · final swipe ←
-            drops it toward the gap
-          </div>
+          <div className="rh-hint-title">SWIPE TO CHOP!</div>
         </div>
       )}
 
@@ -1328,6 +1322,48 @@ function drawIslands(ctx: CanvasRenderingContext2D, g: GameData) {
   drawIsland(ctx, -600, BASE_X + 26, g.leftTop, true)
   // right island (extends far to the right so the wide gap reads cleanly)
   drawIsland(ctx, g.rightEdge, g.rightEdge + 700, g.rightTop, false)
+}
+
+// Coloured landing-zone bands on the right island, shown after the tree falls.
+// Green = perfect (≥90), yellow = nice (50–89), red = too much (15–49).
+// Bands extend 40 world-px down from the grass top so they're legible at the
+// default zoom. A white tick marks where the foliage tip actually landed.
+function drawScoreZones(ctx: CanvasRenderingContext2D, g: GameData) {
+  if (g.phase === 'title' || g.phase === 'chopping' || g.phase === 'falling') return
+
+  const maxDev = g.treeHeight * 0.25
+  // score = 100 - 85·dev² ≥ 90  →  dev ≤ √(10/85)
+  const greenEdge = maxDev * Math.sqrt(10 / 85)
+  // score ≥ 50  →  dev ≤ √(50/85)
+  const yellowEdge = maxDev * Math.sqrt(50 / 85)
+
+  const grassTop = g.rightTop - 6  // top of the grass strip (matches drawIsland)
+  const zoneH = 40                  // tall enough to be visible at 0.42× zoom
+
+  // Main colour fills — drawn over the grass+dirt surface of the right island
+  ctx.globalAlpha = 0.72
+  px(ctx, g.rightEdge + yellowEdge, grassTop, maxDev - yellowEdge, zoneH, '#cc2222')
+  px(ctx, g.rightEdge + greenEdge,  grassTop, yellowEdge - greenEdge, zoneH, '#c9900a')
+  px(ctx, g.rightEdge,              grassTop, greenEdge,              zoneH, '#1f9e30')
+  ctx.globalAlpha = 1
+
+  // Bright 2 px rim along the top edge of each zone for crisp contrast
+  px(ctx, g.rightEdge + yellowEdge, grassTop, maxDev - yellowEdge, 2, '#ff5555')
+  px(ctx, g.rightEdge + greenEdge,  grassTop, yellowEdge - greenEdge, 2, '#ffee22')
+  px(ctx, g.rightEdge,              grassTop, greenEdge,              2, '#55ff66')
+
+  // 1 px dark dividers between zones
+  px(ctx, g.rightEdge + greenEdge  - 1, grassTop, 2, zoneH, '#000000')
+  px(ctx, g.rightEdge + yellowEdge - 1, grassTop, 2, zoneH, '#000000')
+
+  // White tick at the actual foliage-tip landing position on a successful bridge
+  if (g.success && g.breakH > 0) {
+    const tipX =
+      BASE_X + (g.treeHeight - g.breakH) + foliageRadius(g.treeWidth) * FOLIAGE_REACH
+    ctx.globalAlpha = 0.9
+    px(ctx, tipX - 1, grassTop - 4, 3, zoneH + 8, '#ffffff')
+    ctx.globalAlpha = 1
+  }
 }
 
 function drawIsland(ctx: CanvasRenderingContext2D, left: number, right: number, top: number, isLeft: boolean) {
