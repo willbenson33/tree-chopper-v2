@@ -1141,6 +1141,7 @@ export default function RavenHop() {
     // clip-ish: draw sky background larger than world to fill when zoomed
     drawSky(ctx)
     drawIslands(ctx, g)
+    drawScoreZones(ctx, g)
     drawDecoTrees(ctx, g)
     drawTree(ctx, g)
     // Water sits IN FRONT of the landmass and the tree: it hides the underwater
@@ -1328,6 +1329,40 @@ function drawIslands(ctx: CanvasRenderingContext2D, g: GameData) {
   drawIsland(ctx, -600, BASE_X + 26, g.leftTop, true)
   // right island (extends far to the right so the wide gap reads cleanly)
   drawIsland(ctx, g.rightEdge, g.rightEdge + 700, g.rightTop, false)
+}
+
+// Coloured landing-zone bands on the right island's grass edge, shown after the
+// tree falls. Green = perfect (≥90), yellow = nice (50–89), red = too much (15–49).
+// A white tick marks where the foliage tip actually landed on a successful chop.
+function drawScoreZones(ctx: CanvasRenderingContext2D, g: GameData) {
+  if (g.phase === 'title' || g.phase === 'chopping' || g.phase === 'falling') return
+
+  const maxDev = g.treeHeight * 0.25
+  // score = 100 - 85·dev² ≥ 90  →  dev ≤ √(10/85)
+  const greenEdge = maxDev * Math.sqrt(10 / 85)
+  // score ≥ 50  →  dev ≤ √(50/85)
+  const yellowEdge = maxDev * Math.sqrt(50 / 85)
+
+  const grassY = g.rightTop - 6 // top of the grass strip (matches drawIsland)
+  const zoneH = 8               // same height as the grass strip
+
+  ctx.globalAlpha = 0.7
+  // red zone: score 15–49 (overshoots too far)
+  px(ctx, g.rightEdge + yellowEdge, grassY, maxDev - yellowEdge, zoneH, '#ee3333')
+  // yellow zone: score 50–89 (nice but not perfect)
+  px(ctx, g.rightEdge + greenEdge, grassY, yellowEdge - greenEdge, zoneH, '#ffcc00')
+  // green zone: score 90–100 (perfect chop)
+  px(ctx, g.rightEdge, grassY, greenEdge, zoneH, '#33cc44')
+  ctx.globalAlpha = 1
+
+  // White tick at the actual landing position when the tree bridged successfully
+  if (g.success && g.breakH > 0) {
+    const tipX =
+      BASE_X + (g.treeHeight - g.breakH) + foliageRadius(g.treeWidth) * FOLIAGE_REACH
+    ctx.globalAlpha = 0.9
+    px(ctx, tipX - 1, grassY - 3, 3, zoneH + 6, '#ffffff')
+    ctx.globalAlpha = 1
+  }
 }
 
 function drawIsland(ctx: CanvasRenderingContext2D, left: number, right: number, top: number, isLeft: boolean) {
