@@ -252,9 +252,11 @@ const LOG_GRAV = 820 // px/s^2 pulling the detached log down
 const LOG_AIR = 0.992 // velocity retained each step in the air
 
 // Surface height under a given x: left island, the water in the gap, or right island.
+// The right island uses the grass top (top - 6) so the foliage rests flush on the
+// visible green surface rather than sinking into the dirt beneath it.
 function groundYAt(g: GameData, x: number) {
   if (x <= LEFT_CLIFF_X) return g.leftTop
-  if (x >= g.rightEdge) return g.rightTop
+  if (x >= g.rightEdge) return g.rightTop - 6
   return WATER_Y
 }
 
