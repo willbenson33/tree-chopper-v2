@@ -12,7 +12,7 @@ const CHOPS_TO_BREAK = 1 // hits needed in the SAME spot to fell the tree
 const FOLIAGE_PAD = 22 // top of the trunk reserved for the canopy (not choppable)
 const MIN_ZOOM = 0.35
 const MAX_ZOOM = 2.5
-const DEFAULT_ZOOM = 0.42 // frames the whole (very tall) tree + the gap; zoom in to chop precisely
+const DEFAULT_ZOOM = 0.55 // frames the whole tree + gap with the treetop near the top of the display
 const PAN_SPEED = 300 // world units / second while a d-pad button is held
 
 type Phase = 'title' | 'chopping' | 'falling' | 'landed' | 'plunging' | 'hopping' | 'result'
